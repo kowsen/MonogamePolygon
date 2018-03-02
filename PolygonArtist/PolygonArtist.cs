@@ -25,7 +25,18 @@ namespace PolygonArtist
             _basicEffect.VertexColorEnabled = true;
         }
 
-        public void DrawPolygon(List<Vector2> polygon, Color color, Vector2 offset = new Vector2(), float inset = 0f)
+        public List<Vector2> InsetPolygon(List<Vector2> polygon, float inset)
+        {
+            var length = PopulatePolyStorage(polygon, inset);
+            var vecList = new List<Vector2>(length);
+            for (var i = 0; i < length; i++)
+            {
+                vecList.Add(_polyStorage[i].Inner);
+            }
+            return vecList;
+        }
+
+        public void DrawPolygon(List<Vector2> polygon, Color color, float opacity = 1f, Vector2 offset = new Vector2(), float inset = 0f, bool isShaded = true)
         {
             if (_vertexStorage == null || _vertexStorage.Length < polygon.Count)
             {
@@ -35,7 +46,8 @@ namespace PolygonArtist
 
             if (length >= 3)
             {
-                GenerateTrianglesFromPolyStorage(length, color, _vertexStorage, offset, _bounds, inset);
+                _basicEffect.Alpha = opacity;
+                GenerateTrianglesFromPolyStorage(length, color, _vertexStorage, offset, _bounds, inset, isShaded);
                 var passes = _basicEffect.CurrentTechnique.Passes;
                 for (var i = 0; i < passes.Count; i++)
                 {
@@ -45,8 +57,24 @@ namespace PolygonArtist
             }
         }
 
-        private int GenerateTrianglesFromPolyStorage(int storageLength, Color color, VertexPositionColor[] vertices, Vector2 offset, Rectangle bounds, float thickness)
+        private int GenerateTrianglesFromPolyStorage(int storageLength, Color color, VertexPositionColor[] vertices, Vector2 offset, Rectangle bounds, float thickness, bool isShaded)
         {
+            Vector2 startPoint = Vector2.Zero;
+            Vector2 endPoint = Vector2.Zero;
+
+            for (var k = 0; k < storageLength; k++)
+            {
+                var vec = _polyStorage[k];
+                if (startPoint.Equals(Vector2.Zero) || vec.Inner.Length() < startPoint.Length())
+                {
+                    startPoint = vec.Inner;
+                }
+                if (endPoint.Equals(Vector2.Zero) || vec.Inner.Length() > endPoint.Length())
+                {
+                    endPoint = vec.Inner;
+                }
+            }
+
             float bbw = bounds.Width;
             float bbh = bounds.Height;
 
@@ -78,7 +106,13 @@ namespace PolygonArtist
             {
                 float x = -(((bbw / 2f) - (point.X + offset.X)) / (bbw / 2f));
                 float y = (((bbh / 2f) - (point.Y + offset.Y)) / (bbh / 2f));
-                vertices[index] = new VertexPositionColor(new Vector3(x, y, 0f), color);
+                //var lerpAmount = (float)(point.Length() / Math.Sqrt(540 * 540 + 800 * 800));
+                var pointDistance = point.Length() - startPoint.Length();
+                var shapeSize = endPoint.Length() - startPoint.Length();
+                var lerpAmount = pointDistance / shapeSize;
+                lerpAmount /= 2.5f;
+                var lerpColor = Color.Lerp(color, Color.Black, lerpAmount);
+                vertices[index] = new VertexPositionColor(new Vector3(x, y, 0f), isShaded ? lerpColor : color);
                 index += 1;
             }
         }
