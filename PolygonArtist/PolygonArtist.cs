@@ -25,7 +25,24 @@ namespace PolygonArtist
             _basicEffect.VertexColorEnabled = true;
         }
 
-        public void DrawPolygon(List<Vector2> polygon, Color color, Vector2 offset = new Vector2(), float inset = 0f)
+        public List<Vector2> InsetPolygon(List<Vector2> polygon, float inset = 0f)
+        {
+            if (_vertexStorage == null || _vertexStorage.Length < polygon.Count)
+            {
+                _vertexStorage = new VertexPositionColor[polygon.Count];
+            }
+            var length = PopulatePolyStorage(polygon, inset);
+
+            var insetPolygon = new List<Vector2>();
+            for (var i = 0; i < length; i++)
+            {
+                insetPolygon.Add(_polyStorage[i].Inner);
+            }
+
+            return insetPolygon;
+        }
+
+        public void DrawPolygon(List<Vector2> polygon, Color color, float opacity = 1f, Vector2 offset = new Vector2(), float inset = 0f)
         {
             if (_vertexStorage == null || _vertexStorage.Length < polygon.Count)
             {
@@ -36,6 +53,7 @@ namespace PolygonArtist
             if (length >= 3)
             {
                 GenerateTrianglesFromPolyStorage(length, color, _vertexStorage, offset, _bounds, inset);
+                _basicEffect.Alpha = opacity;
                 var passes = _basicEffect.CurrentTechnique.Passes;
                 for (var i = 0; i < passes.Count; i++)
                 {
