@@ -8,6 +8,8 @@ namespace PolygonArtist
 {
     public class Artist
     {
+        public static float ShadeFactor { get; set; } = 0.25f;
+
         private GraphicsDevice _device;
         private Rectangle _bounds;
         private BasicEffect _basicEffect;
@@ -36,7 +38,7 @@ namespace PolygonArtist
             return vecList;
         }
 
-        public void DrawPolygon(List<Vector2> polygon, Color color, float opacity = 1f, Vector2 offset = new Vector2(), float inset = 0f, bool isShaded = true)
+        public void DrawPolygon(List<Vector2> polygon, Color color, float opacity = 1f, Vector2 offset = new Vector2(), float inset = 0f, Func<Vector2, Color> getShade = null)
         {
             if (_vertexStorage == null || _vertexStorage.Length < polygon.Count)
             {
@@ -47,7 +49,7 @@ namespace PolygonArtist
             if (length >= 3)
             {
                 _basicEffect.Alpha = opacity;
-                GenerateTrianglesFromPolyStorage(length, color, _vertexStorage, offset, _bounds, inset, isShaded);
+                GenerateTrianglesFromPolyStorage(length, color, _vertexStorage, offset, _bounds, inset, getShade);
                 var passes = _basicEffect.CurrentTechnique.Passes;
                 for (var i = 0; i < passes.Count; i++)
                 {
@@ -57,24 +59,8 @@ namespace PolygonArtist
             }
         }
 
-        private int GenerateTrianglesFromPolyStorage(int storageLength, Color color, VertexPositionColor[] vertices, Vector2 offset, Rectangle bounds, float thickness, bool isShaded)
+        private int GenerateTrianglesFromPolyStorage(int storageLength, Color color, VertexPositionColor[] vertices, Vector2 offset, Rectangle bounds, float thickness, Func<Vector2, Color> getShade)
         {
-            Vector2 startPoint = Vector2.Zero;
-            Vector2 endPoint = Vector2.Zero;
-
-            for (var k = 0; k < storageLength; k++)
-            {
-                var vec = _polyStorage[k];
-                if (startPoint.Equals(Vector2.Zero) || vec.Inner.Length() < startPoint.Length())
-                {
-                    startPoint = vec.Inner;
-                }
-                if (endPoint.Equals(Vector2.Zero) || vec.Inner.Length() > endPoint.Length())
-                {
-                    endPoint = vec.Inner;
-                }
-            }
-
             float bbw = bounds.Width;
             float bbh = bounds.Height;
 
@@ -107,12 +93,8 @@ namespace PolygonArtist
                 float x = -(((bbw / 2f) - (point.X + offset.X)) / (bbw / 2f));
                 float y = (((bbh / 2f) - (point.Y + offset.Y)) / (bbh / 2f));
                 //var lerpAmount = (float)(point.Length() / Math.Sqrt(540 * 540 + 800 * 800));
-                var pointDistance = point.Length() - startPoint.Length();
-                var shapeSize = endPoint.Length() - startPoint.Length();
-                var lerpAmount = pointDistance / shapeSize;
-                lerpAmount /= 2.5f;
-                var lerpColor = Color.Lerp(color, Color.Black, lerpAmount);
-                vertices[index] = new VertexPositionColor(new Vector3(x, y, 0f), isShaded ? lerpColor : color);
+
+                vertices[index] = new VertexPositionColor(new Vector3(x, y, 0f), getShade == null ? color : getShade(point));
                 index += 1;
             }
         }
